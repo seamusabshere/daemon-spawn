@@ -45,6 +45,16 @@ module DaemonSpawn
     end
     puts "#{daemon.app_name} started."
   end
+  
+  def self.still_alive?(pid)
+    alive = true
+    begin
+      Process.kill 0, pid
+    rescue Errno::ESRCH
+      alive = false
+    end
+    alive
+  end
 
   def self.stop(daemon) #:nodoc:
     if pid = daemon.pid
@@ -54,6 +64,19 @@ module DaemonSpawn
         Process.wait(pid)
       rescue Errno::ECHILD
       end
+      
+      # just in case...
+      ticks = daemon.timeout
+      while ticks > 0 and still_alive?(pid) do
+        puts "Process is still alive. #{ticks} seconds until I kill -9 it..."
+        sleep 1
+        ticks -= 1
+      end
+      if still_alive?(pid)
+        puts "Process didn't quit after timeout of #{daemon.timeout} seconds. Killing..."
+        Process.kill 9, pid
+      end
+      # ... ok.
     else
       puts "PID file not found. Is the daemon started?"
     end
@@ -66,11 +89,12 @@ module DaemonSpawn
   end
 
   class Base
-    attr_accessor :log_file, :pid_file, :sync_log, :working_dir, :app_name, :singleton, :index, :signal
+    attr_accessor :log_file, :pid_file, :sync_log, :working_dir, :app_name, :singleton, :index, :signal, :timeout
 
     def initialize(opts = {})
       raise 'You must specify a :working_dir' unless opts[:working_dir]
       self.signal = opts[:signal] || "TERM"
+      self.timeout = opts[:timeout] || 15
       self.working_dir = opts[:working_dir]
       self.app_name = opts[:application] || classname
       self.pid_file = opts[:pid_file] || File.join(working_dir, 'tmp', 'pids', app_name + extension)
