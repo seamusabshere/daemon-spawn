@@ -46,14 +46,10 @@ module DaemonSpawn
     puts "#{daemon.app_name} started."
   end
   
-  def self.still_alive?(pid)
-    alive = true
-    begin
-      Process.kill 0, pid
-    rescue Errno::ESRCH
-      alive = false
-    end
-    alive
+  def self.alive?(pid)
+    Process.kill 0, pid
+  rescue Errno::ESRCH
+    false
   end
 
   def self.stop(daemon) #:nodoc:
@@ -67,12 +63,12 @@ module DaemonSpawn
       
       # just in case...
       ticks = daemon.timeout
-      while ticks > 0 and still_alive?(pid) do
+      while ticks > 0 and alive?(pid) do
         puts "Process is still alive. #{ticks} seconds until I kill -9 it..."
         sleep 1
         ticks -= 1
       end
-      if still_alive?(pid)
+      if alive?(pid)
         puts "Process didn't quit after timeout of #{daemon.timeout} seconds. Killing..."
         Process.kill 9, pid
       end
@@ -127,11 +123,7 @@ module DaemonSpawn
 
     def alive? #:nodoc:
       if File.file?(self.pid_file)
-        begin
-          Process.kill(0, self.pid)
-        rescue Errno::ESRCH, ::Exception
-          false
-        end
+        self.class.alive? self.pid
       else
         false
       end
