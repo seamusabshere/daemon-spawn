@@ -122,8 +122,8 @@ module DaemonSpawn
     end
 
     def alive? #:nodoc:
-      if File.file?(self.pid_file)
-        self.class.alive? self.pid
+      if File.file?(pid_file)
+        self.class.alive? pid
       else
         false
       end
