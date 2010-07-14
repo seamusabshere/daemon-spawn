@@ -123,7 +123,7 @@ module DaemonSpawn
 
     def alive? #:nodoc:
       if File.file?(pid_file)
-        self.class.alive? pid
+        DaemonSpawn.alive? pid
       else
         false
       end
